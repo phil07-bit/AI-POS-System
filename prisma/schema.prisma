@@ -1,4 +1,4 @@
-// AI-POS database schema — phases 1–3 (foundation, property operations, rent ledger).
+// AI-POS database schema — phases 1–4 (foundation, property operations, rent ledger, facilities).
 // Conventions:
 //  * UUID primary keys, snake_case tables/columns via @@map/@map.
 //  * Money is stored as integer minor units (pesewas for GHS) in *_minor BigInt-free Int columns.
@@ -19,59 +19,66 @@ datasource db {
 // ───────────────────────────── Identity & workspace ─────────────────────────────
 
 model Organization {
-  id              String   @id @default(uuid()) @db.Uuid
-  name            String
-  slug            String   @unique
-  legalName       String?  @map("legal_name")
-  email           String?
-  phone           String?
-  countryCode     String   @default("GH") @map("country_code")
-  defaultCurrency String   @default("GHS") @map("default_currency")
-  timezone        String   @default("Africa/Accra")
-  dateFormat      String   @default("dd MMM yyyy") @map("date_format")
-  addressJson     Json?    @map("address_json")
-  logoStorageKey  String?  @map("logo_storage_key")
-  status          String   @default("active") // active | suspended
-  plan            String   @default("trial")
-  isDemo          Boolean  @default(false) @map("is_demo")
+  id                          String   @id @default(uuid()) @db.Uuid
+  name                        String
+  slug                        String   @unique
+  legalName                   String?  @map("legal_name")
+  email                       String?
+  phone                       String?
+  countryCode                 String   @default("GH") @map("country_code")
+  defaultCurrency             String   @default("GHS") @map("default_currency")
+  timezone                    String   @default("Africa/Accra")
+  dateFormat                  String   @default("dd MMM yyyy") @map("date_format")
+  addressJson                 Json?    @map("address_json")
+  logoStorageKey              String?  @map("logo_storage_key")
+  status                      String   @default("active") // active | suspended
+  plan                        String   @default("trial")
+  isDemo                      Boolean  @default(false) @map("is_demo")
   // Policy settings (organization-configurable)
-  paymentsRequireConfirmation Boolean @default(true) @map("payments_require_confirmation")
-  chargeGenerationHorizonDays Int     @default(31) @map("charge_generation_horizon_days")
-  leaseExpiryWarningDays      Int     @default(60) @map("lease_expiry_warning_days")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  paymentsRequireConfirmation Boolean  @default(true) @map("payments_require_confirmation")
+  chargeGenerationHorizonDays Int      @default(31) @map("charge_generation_horizon_days")
+  leaseExpiryWarningDays      Int      @default(60) @map("lease_expiry_warning_days")
+  createdAt                   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                   DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  memberships   OrganizationMembership[]
-  invitations   Invitation[]
-  properties    Property[]
-  units         Unit[]
-  tenants       Tenant[]
-  leases        Lease[]
-  rentCharges   RentCharge[]
-  payments      Payment[]
-  auditLogs     AuditLog[]
-  notifications Notification[]
-  sequences     OrgSequence[]
+  memberships         OrganizationMembership[]
+  invitations         Invitation[]
+  properties          Property[]
+  units               Unit[]
+  tenants             Tenant[]
+  leases              Lease[]
+  rentCharges         RentCharge[]
+  payments            Payment[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+  sequences           OrgSequence[]
+  vendors             Vendor[]
+  assets              Asset[]
+  maintenanceRequests MaintenanceRequest[]
+  workOrders          WorkOrder[]
+  pmPlans             PreventiveMaintenancePlan[]
 
   @@map("organizations")
 }
 
 model User {
-  id               String    @id @default(uuid()) @db.Uuid
-  fullName         String    @map("full_name")
-  email            String    @unique // normalized lower-case
-  phone            String?
-  passwordHash     String?   @map("password_hash") // bcrypt; never plaintext
-  status           String    @default("active") // active | disabled
-  isPlatformAdmin  Boolean   @default(false) @map("is_platform_admin")
-  mustChangePassword Boolean @default(false) @map("must_change_password")
-  lastLoginAt      DateTime? @map("last_login_at") @db.Timestamptz
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  id                 String    @id @default(uuid()) @db.Uuid
+  fullName           String    @map("full_name")
+  email              String    @unique // normalized lower-case
+  phone              String?
+  passwordHash       String?   @map("password_hash") // bcrypt; never plaintext
+  status             String    @default("active") // active | disabled
+  isPlatformAdmin    Boolean   @default(false) @map("is_platform_admin")
+  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  lastLoginAt        DateTime? @map("last_login_at") @db.Timestamptz
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-  memberships    OrganizationMembership[] @relation("MemberUser")
-  sessions       Session[]
-  passwordResets PasswordResetToken[]
+  memberships        OrganizationMembership[]    @relation("MemberUser")
+  sessions           Session[]
+  passwordResets     PasswordResetToken[]
+  assignedWorkOrders WorkOrder[]                 @relation("WorkOrderAssignee")
+  assignedPmPlans    PreventiveMaintenancePlan[] @relation("PmPlanAssignee")
 
   @@map("users")
 }
@@ -123,8 +130,8 @@ model Role {
 }
 
 model Permission {
-  id          String @id @default(uuid()) @db.Uuid
-  key         String @unique // e.g. payment.reverse
+  id          String  @id @default(uuid()) @db.Uuid
+  key         String  @unique // e.g. payment.reverse
   description String?
 
   roles RolePermission[]
@@ -144,26 +151,27 @@ model RolePermission {
 }
 
 model OrganizationMembership {
-  id             String    @id @default(uuid()) @db.Uuid
-  organizationId String    @map("organization_id") @db.Uuid
-  userId         String    @map("user_id") @db.Uuid
-  roleId         String    @map("role_id") @db.Uuid
-  status         String    @default("active") // active | suspended
+  id                 String   @id @default(uuid()) @db.Uuid
+  organizationId     String   @map("organization_id") @db.Uuid
+  userId             String   @map("user_id") @db.Uuid
+  roleId             String   @map("role_id") @db.Uuid
+  status             String   @default("active") // active | suspended
   // Property scope: when scopeAllProperties is false, access is limited to rows in membership_property_scopes.
-  scopeAllProperties Boolean @default(true) @map("scope_all_properties")
+  scopeAllProperties Boolean  @default(true) @map("scope_all_properties")
   // Tenant portal users are linked to exactly one tenant record.
-  tenantId       String?   @map("tenant_id") @db.Uuid
-  invitedById    String?   @map("invited_by") @db.Uuid
-  joinedAt       DateTime  @default(now()) @map("joined_at") @db.Timestamptz
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  tenantId           String?  @map("tenant_id") @db.Uuid
+  invitedById        String?  @map("invited_by") @db.Uuid
+  joinedAt           DateTime @default(now()) @map("joined_at") @db.Timestamptz
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user         User         @relation("MemberUser", fields: [userId], references: [id], onDelete: Cascade)
-  role         Role         @relation(fields: [roleId], references: [id])
-  tenant       Tenant?      @relation(fields: [tenantId], references: [id])
-  propertyScopes MembershipPropertyScope[]
-  managedProperties Property[] @relation("PropertyManager")
+  organization      Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user              User                      @relation("MemberUser", fields: [userId], references: [id], onDelete: Cascade)
+  role              Role                      @relation(fields: [roleId], references: [id])
+  tenant            Tenant?                   @relation(fields: [tenantId], references: [id])
+  propertyScopes    MembershipPropertyScope[]
+  managedProperties Property[]                @relation("PropertyManager")
+  managedRequests   MaintenanceRequest[]      @relation("RequestManager")
 
   @@unique([organizationId, userId])
   @@index([userId])
@@ -182,19 +190,19 @@ model MembershipPropertyScope {
 }
 
 model Invitation {
-  id             String    @id @default(uuid()) @db.Uuid
-  organizationId String    @map("organization_id") @db.Uuid
-  email          String
-  roleId         String    @map("role_id") @db.Uuid
-  scopeAllProperties Boolean @default(true) @map("scope_all_properties")
-  propertyIds    String[]  @default([]) @map("property_ids") @db.Uuid
-  tenantId       String?   @map("tenant_id") @db.Uuid
-  tokenHash      String    @unique @map("token_hash")
-  status         String    @default("pending") // pending | accepted | revoked | expired
-  invitedById    String    @map("invited_by") @db.Uuid
-  expiresAt      DateTime  @map("expires_at") @db.Timestamptz
-  acceptedAt     DateTime? @map("accepted_at") @db.Timestamptz
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  id                 String    @id @default(uuid()) @db.Uuid
+  organizationId     String    @map("organization_id") @db.Uuid
+  email              String
+  roleId             String    @map("role_id") @db.Uuid
+  scopeAllProperties Boolean   @default(true) @map("scope_all_properties")
+  propertyIds        String[]  @default([]) @map("property_ids") @db.Uuid
+  tenantId           String?   @map("tenant_id") @db.Uuid
+  tokenHash          String    @unique @map("token_hash")
+  status             String    @default("pending") // pending | accepted | revoked | expired
+  invitedById        String    @map("invited_by") @db.Uuid
+  expiresAt          DateTime  @map("expires_at") @db.Timestamptz
+  acceptedAt         DateTime? @map("accepted_at") @db.Timestamptz
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   role         Role         @relation(fields: [roleId], references: [id])
@@ -240,12 +248,15 @@ model Property {
   createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  manager      OrganizationMembership? @relation("PropertyManager", fields: [managerMembershipId], references: [id], onDelete: SetNull)
-  units        Unit[]
-  leases       Lease[]
-  rentCharges  RentCharge[]
-  scopes       MembershipPropertyScope[]
+  organization        Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  manager             OrganizationMembership?   @relation("PropertyManager", fields: [managerMembershipId], references: [id], onDelete: SetNull)
+  units               Unit[]
+  leases              Lease[]
+  rentCharges         RentCharge[]
+  scopes              MembershipPropertyScope[]
+  assets              Asset[]
+  maintenanceRequests MaintenanceRequest[]
+  workOrders          WorkOrder[]
 
   @@unique([organizationId, propertyRef])
   @@index([organizationId, status])
@@ -253,34 +264,37 @@ model Property {
 }
 
 model Unit {
-  id              String    @id @default(uuid()) @db.Uuid
-  organizationId  String    @map("organization_id") @db.Uuid
-  propertyId      String    @map("property_id") @db.Uuid
-  unitRef         String    @map("unit_ref")
-  unitName        String    @map("unit_name")
-  unitType        String    @map("unit_type") // apartment | studio | chamber_and_hall | single_room | shop | office | warehouse | parking | other
-  building        String?
-  block           String?
-  floor           String?
-  bedrooms        Int?
-  bathrooms       Int?
-  areaValue       Decimal?  @map("area_value") @db.Decimal(10, 2)
-  areaUnit        String?   @default("sqm") @map("area_unit")
-  furnishingStatus String   @default("unfurnished") @map("furnishing_status") // unfurnished | semi_furnished | furnished
-  askingRentMinor Int?      @map("asking_rent_minor")
-  currency        String    @default("GHS")
-  rentFrequency   String    @default("monthly") @map("rent_frequency")
+  id               String    @id @default(uuid()) @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  propertyId       String    @map("property_id") @db.Uuid
+  unitRef          String    @map("unit_ref")
+  unitName         String    @map("unit_name")
+  unitType         String    @map("unit_type") // apartment | studio | chamber_and_hall | single_room | shop | office | warehouse | parking | other
+  building         String?
+  block            String?
+  floor            String?
+  bedrooms         Int?
+  bathrooms        Int?
+  areaValue        Decimal?  @map("area_value") @db.Decimal(10, 2)
+  areaUnit         String?   @default("sqm") @map("area_unit")
+  furnishingStatus String    @default("unfurnished") @map("furnishing_status") // unfurnished | semi_furnished | furnished
+  askingRentMinor  Int?      @map("asking_rent_minor")
+  currency         String    @default("GHS")
+  rentFrequency    String    @default("monthly") @map("rent_frequency")
   // Manual availability override. "occupied" is NOT stored — it is derived from active leases.
-  availability    String    @default("available") // available | reserved | unavailable | under_maintenance
-  description     String?
-  archivedAt      DateTime? @map("archived_at") @db.Timestamptz
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  availability     String    @default("available") // available | reserved | unavailable | under_maintenance
+  description      String?
+  archivedAt       DateTime? @map("archived_at") @db.Timestamptz
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  property     Property     @relation(fields: [propertyId], references: [id], onDelete: Restrict)
-  leases       Lease[]
-  rentCharges  RentCharge[]
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  property            Property             @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  leases              Lease[]
+  rentCharges         RentCharge[]
+  assets              Asset[]
+  maintenanceRequests MaintenanceRequest[]
+  workOrders          WorkOrder[]
 
   @@unique([propertyId, unitRef])
   @@index([organizationId])
@@ -288,35 +302,36 @@ model Unit {
 }
 
 model Tenant {
-  id                       String    @id @default(uuid()) @db.Uuid
-  organizationId           String    @map("organization_id") @db.Uuid
-  tenantRef                String    @map("tenant_ref")
-  tenantType               String    @map("tenant_type") // individual | organization
-  displayName              String    @map("display_name")
-  email                    String?
-  phone                    String?   // E.164, e.g. +233241234567
-  alternatePhone           String?   @map("alternate_phone")
-  addressJson              Json?     @map("address_json")
-  emergencyContactJson     Json?     @map("emergency_contact_json") // restricted: tenant.sensitive.read
-  identificationType       String?   @map("identification_type") // ghana_card | passport | drivers_licence | voter_id | other
-  identificationRefEncrypted String? @map("identification_reference_encrypted") // AES-256-GCM, restricted
-  identificationRefLast4   String?   @map("identification_reference_last4")
-  employmentInfo           String?   @map("employment_info") // optional; restricted
-  status                   String    @default("prospective") // prospective | active | former
-  privacyNoticeVersion     String?   @map("privacy_notice_version")
-  privacyNoticeAcceptedAt  DateTime? @map("privacy_notice_accepted_at") @db.Timestamptz
-  archivedAt               DateTime? @map("archived_at") @db.Timestamptz
-  createdById              String?   @map("created_by") @db.Uuid
-  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt                DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  id                         String    @id @default(uuid()) @db.Uuid
+  organizationId             String    @map("organization_id") @db.Uuid
+  tenantRef                  String    @map("tenant_ref")
+  tenantType                 String    @map("tenant_type") // individual | organization
+  displayName                String    @map("display_name")
+  email                      String?
+  phone                      String? // E.164, e.g. +233241234567
+  alternatePhone             String?   @map("alternate_phone")
+  addressJson                Json?     @map("address_json")
+  emergencyContactJson       Json?     @map("emergency_contact_json") // restricted: tenant.sensitive.read
+  identificationType         String?   @map("identification_type") // ghana_card | passport | drivers_licence | voter_id | other
+  identificationRefEncrypted String?   @map("identification_reference_encrypted") // AES-256-GCM, restricted
+  identificationRefLast4     String?   @map("identification_reference_last4")
+  employmentInfo             String?   @map("employment_info") // optional; restricted
+  status                     String    @default("prospective") // prospective | active | former
+  privacyNoticeVersion       String?   @map("privacy_notice_version")
+  privacyNoticeAcceptedAt    DateTime? @map("privacy_notice_accepted_at") @db.Timestamptz
+  archivedAt                 DateTime? @map("archived_at") @db.Timestamptz
+  createdById                String?   @map("created_by") @db.Uuid
+  createdAt                  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                  DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  leaseParties LeaseParty[]
-  notes        TenantNote[]
-  rentCharges  RentCharge[]
-  payments     Payment[]
-  adjustments  LedgerAdjustment[]
-  portalMemberships OrganizationMembership[]
+  organization        Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leaseParties        LeaseParty[]
+  notes               TenantNote[]
+  rentCharges         RentCharge[]
+  payments            Payment[]
+  adjustments         LedgerAdjustment[]
+  portalMemberships   OrganizationMembership[]
+  maintenanceRequests MaintenanceRequest[]
 
   @@unique([organizationId, tenantRef])
   @@index([organizationId, status])
@@ -372,11 +387,11 @@ model Lease {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  property     Property     @relation(fields: [propertyId], references: [id], onDelete: Restrict)
-  unit         Unit         @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  renewalOf    Lease?       @relation("LeaseRenewal", fields: [renewalOfLeaseId], references: [id])
-  renewals     Lease[]      @relation("LeaseRenewal")
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  property     Property           @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unit         Unit               @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  renewalOf    Lease?             @relation("LeaseRenewal", fields: [renewalOfLeaseId], references: [id])
+  renewals     Lease[]            @relation("LeaseRenewal")
   parties      LeaseParty[]
   rentCharges  RentCharge[]
   payments     Payment[]
@@ -546,6 +561,229 @@ model Receipt {
   @@map("receipts")
 }
 
+// ───────────────────────────── Facilities (phase 4) ─────────────────────────────
+// Maintenance costs are operating expenditure tracked on work orders. They are NOT tenant
+// receivables and never touch the rent ledger.
+
+model Vendor {
+  id                String   @id @default(uuid()) @db.Uuid
+  organizationId    String   @map("organization_id") @db.Uuid
+  vendorRef         String   @map("vendor_ref")
+  businessName      String   @map("business_name")
+  contactName       String?  @map("contact_name")
+  phone             String?
+  email             String?
+  addressJson       Json?    @map("address_json")
+  serviceCategories String[] @default([]) @map("service_categories") // maintenance categories, e.g. plumbing
+  status            String   @default("active") // active | inactive | suspended
+  notes             String? // performance notes. Bank details are deliberately NOT collected (spec §4.8).
+  createdById       String?  @map("created_by") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workOrders   WorkOrder[]
+  pmPlans      PreventiveMaintenancePlan[]
+
+  @@unique([organizationId, vendorRef])
+  @@index([organizationId, status])
+  @@map("vendors")
+}
+
+model Asset {
+  id                  String    @id @default(uuid()) @db.Uuid
+  organizationId      String    @map("organization_id") @db.Uuid
+  assetRef            String    @map("asset_ref")
+  propertyId          String    @map("property_id") @db.Uuid
+  unitId              String?   @map("unit_id") @db.Uuid
+  name                String
+  category            String // generator | water_pump | borehole | lift | air_conditioner | fire_equipment | water_system | security_system | electrical | solar | appliance | other
+  location            String? // free text, e.g. "Rear yard, generator house"
+  make                String?
+  model               String?
+  serialNumber        String?   @map("serial_number")
+  installedAt         DateTime? @map("installed_at") @db.Date
+  warrantyExpiresAt   DateTime? @map("warranty_expires_at") @db.Date
+  criticality         String    @default("medium") // low | medium | high | critical
+  condition           String    @default("good") // good | fair | poor | failed
+  status              String    @default("active") // active | inactive | disposed
+  serviceIntervalDays Int?      @map("service_interval_days")
+  lastServicedAt      DateTime? @map("last_serviced_at") @db.Date
+  nextServiceAt       DateTime? @map("next_service_at") @db.Date // derived: last serviced (or installed) + interval
+  notes               String?
+  disposedAt          DateTime? @map("disposed_at") @db.Date
+  createdById         String?   @map("created_by") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization        Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  property            Property                    @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unit                Unit?                       @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  maintenanceRequests MaintenanceRequest[]
+  workOrders          WorkOrder[]
+  pmPlans             PreventiveMaintenancePlan[]
+
+  @@unique([organizationId, assetRef])
+  @@index([organizationId, propertyId])
+  @@index([organizationId, nextServiceAt])
+  @@map("assets")
+}
+
+model MaintenanceRequest {
+  id                          String    @id @default(uuid()) @db.Uuid
+  organizationId              String    @map("organization_id") @db.Uuid
+  requestRef                  String    @map("request_ref")
+  propertyId                  String    @map("property_id") @db.Uuid
+  unitId                      String?   @map("unit_id") @db.Uuid
+  tenantId                    String?   @map("tenant_id") @db.Uuid
+  assetId                     String?   @map("asset_id") @db.Uuid
+  category                    String // plumbing | electrical | structural | hvac | cleaning | security | pest_control | appliance | grounds | other
+  title                       String
+  description                 String
+  priority                    String    @default("normal") // low | normal | high | emergency
+  status                      String    @default("submitted") // submitted | triaged | approved | assigned | in_progress | waiting_for_parts | completed | closed | rejected | cancelled
+  source                      String    @default("staff") // staff | tenant_portal
+  requesterName               String    @map("requester_name")
+  requesterContact            String?   @map("requester_contact")
+  submittedAt                 DateTime  @default(now()) @map("submitted_at") @db.Timestamptz
+  targetDate                  DateTime? @map("target_date") @db.Date
+  triagedAt                   DateTime? @map("triaged_at") @db.Timestamptz
+  decidedAt                   DateTime? @map("decided_at") @db.Timestamptz
+  decisionReason              String?   @map("decision_reason")
+  completedAt                 DateTime? @map("completed_at") @db.Timestamptz
+  closedAt                    DateTime? @map("closed_at") @db.Timestamptz
+  closedById                  String?   @map("closed_by") @db.Uuid
+  assignedManagerMembershipId String?   @map("assigned_manager_membership_id") @db.Uuid
+  resolutionNotes             String?   @map("resolution_notes")
+  feedbackRating              Int?      @map("feedback_rating") // 1–5, from the requester
+  feedbackComment             String?   @map("feedback_comment")
+  escalatedAt                 DateTime? @map("escalated_at") @db.Timestamptz // emergency escalation sent
+  createdById                 String?   @map("created_by") @db.Uuid
+  createdAt                   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization    Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  property        Property                @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unit            Unit?                   @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  tenant          Tenant?                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  asset           Asset?                  @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  assignedManager OrganizationMembership? @relation("RequestManager", fields: [assignedManagerMembershipId], references: [id], onDelete: SetNull)
+  updates         MaintenanceUpdate[]
+  workOrders      WorkOrder[]
+
+  @@unique([organizationId, requestRef])
+  @@index([organizationId, status])
+  @@index([tenantId])
+  @@map("maintenance_requests")
+}
+
+/**
+ * Timeline entries on a request: internal notes, tenant-visible updates and status changes.
+ */
+model MaintenanceUpdate {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  requestId      String   @map("request_id") @db.Uuid
+  kind           String   @default("note") // note | status_change | work_order
+  visibility     String   @default("internal") // internal | tenant
+  body           String
+  authorUserId   String?  @map("author_user_id") @db.Uuid
+  authorName     String   @map("author_name")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  request MaintenanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+  @@map("maintenance_updates")
+}
+
+model WorkOrder {
+  id                   String    @id @default(uuid()) @db.Uuid
+  organizationId       String    @map("organization_id") @db.Uuid
+  workOrderRef         String    @map("work_order_ref")
+  maintenanceRequestId String?   @map("maintenance_request_id") @db.Uuid
+  pmPlanId             String?   @map("pm_plan_id") @db.Uuid
+  pmDueDate            DateTime? @map("pm_due_date") @db.Date // the plan occurrence this WO services
+  kind                 String    @default("reactive") // reactive | preventive
+  propertyId           String    @map("property_id") @db.Uuid
+  unitId               String?   @map("unit_id") @db.Uuid
+  assetId              String?   @map("asset_id") @db.Uuid
+  category             String
+  scope                String
+  priority             String    @default("normal") // low | normal | high | emergency
+  status               String    @default("open") // open | assigned | in_progress | waiting_for_parts | completed | closed | cancelled
+  assignedUserId       String?   @map("assigned_user_id") @db.Uuid
+  vendorId             String?   @map("vendor_id") @db.Uuid
+  assignedAt           DateTime? @map("assigned_at") @db.Timestamptz
+  scheduledAt          DateTime? @map("scheduled_at") @db.Date
+  dueAt                DateTime? @map("due_at") @db.Date
+  startedAt            DateTime? @map("started_at") @db.Timestamptz
+  completedAt          DateTime? @map("completed_at") @db.Timestamptz
+  closedAt             DateTime? @map("closed_at") @db.Timestamptz
+  closedById           String?   @map("closed_by") @db.Uuid
+  labourCostMinor      Int       @default(0) @map("labour_cost_minor")
+  materialsCostMinor   Int       @default(0) @map("materials_cost_minor")
+  vendorCostMinor      Int       @default(0) @map("vendor_cost_minor")
+  otherCostMinor       Int       @default(0) @map("other_cost_minor")
+  currency             String    @default("GHS")
+  purchaseReference    String?   @map("purchase_reference") // PO / invoice / expense reference
+  completionNotes      String?   @map("completion_notes")
+  checklistJson        Json?     @map("checklist_json") // [{ item, done, reading?, note? }] for inspections / PM
+  signOffName          String?   @map("sign_off_name")
+  signOffNotes         String?   @map("sign_off_notes")
+  returnVisitDate      DateTime? @map("return_visit_date") @db.Date // warranty / return visit
+  cancelReason         String?   @map("cancel_reason")
+  createdById          String?   @map("created_by") @db.Uuid
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization       Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  maintenanceRequest MaintenanceRequest?        @relation(fields: [maintenanceRequestId], references: [id], onDelete: Restrict)
+  pmPlan             PreventiveMaintenancePlan? @relation(fields: [pmPlanId], references: [id], onDelete: Restrict)
+  property           Property                   @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unit               Unit?                      @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  asset              Asset?                     @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  assignedUser       User?                      @relation("WorkOrderAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  vendor             Vendor?                    @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+
+  // One work order per preventive-plan occurrence: makes PM generation idempotent.
+  @@unique([pmPlanId, pmDueDate])
+  @@unique([organizationId, workOrderRef])
+  @@index([organizationId, status])
+  @@index([assignedUserId, status])
+  @@index([vendorId])
+  @@index([assetId])
+  @@map("work_orders")
+}
+
+model PreventiveMaintenancePlan {
+  id                 String    @id @default(uuid()) @db.Uuid
+  organizationId     String    @map("organization_id") @db.Uuid
+  assetId            String    @map("asset_id") @db.Uuid
+  planName           String    @map("plan_name")
+  intervalDays       Int       @map("interval_days")
+  nextDueAt          DateTime  @map("next_due_at") @db.Date
+  leadDays           Int       @default(7) @map("lead_days") // create the work order this many days before it is due
+  checklistJson      Json      @default("[]") @map("checklist_json") // ["Check oil level", ...]
+  assignedVendorId   String?   @map("assigned_vendor_id") @db.Uuid
+  assignedUserId     String?   @map("assigned_user_id") @db.Uuid
+  estimatedCostMinor Int?      @map("estimated_cost_minor")
+  active             Boolean   @default(true)
+  lastGeneratedAt    DateTime? @map("last_generated_at") @db.Timestamptz
+  createdById        String?   @map("created_by") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  asset          Asset        @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  assignedVendor Vendor?      @relation(fields: [assignedVendorId], references: [id], onDelete: SetNull)
+  assignedUser   User?        @relation("PmPlanAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  workOrders     WorkOrder[]
+
+  @@index([organizationId, active, nextDueAt])
+  @@map("preventive_maintenance_plans")
+}
+
 // ───────────────────────────── Governance ─────────────────────────────
 
 model AuditLog {
@@ -553,12 +791,12 @@ model AuditLog {
   organizationId String?  @map("organization_id") @db.Uuid
   actorUserId    String?  @map("actor_user_id") @db.Uuid
   actorName      String?  @map("actor_name")
-  action         String   // e.g. payment.reversed
+  action         String // e.g. payment.reversed
   entityType     String   @map("entity_type")
   entityId       String?  @map("entity_id")
   summary        String?
   beforeJson     Json?    @map("before_json") // redacted
-  afterJson      Json?    @map("after_json")  // redacted
+  afterJson      Json?    @map("after_json") // redacted
   metadataJson   Json?    @map("metadata_json")
   requestId      String?  @map("request_id")
   isDemo         Boolean  @default(false) @map("is_demo")
@@ -575,9 +813,9 @@ model Notification {
   id              String    @id @default(uuid()) @db.Uuid
   organizationId  String?   @map("organization_id") @db.Uuid
   userId          String?   @map("user_id") @db.Uuid
-  recipient       String    // email address or user id
+  recipient       String // email address or user id
   eventType       String    @map("event_type")
-  channel         String    // in_app | email
+  channel         String // in_app | email
   subject         String
   body            String
   bodyTemplateKey String?   @map("body_template_key")
@@ -599,7 +837,7 @@ model Notification {
 model JobRun {
   id         String    @id @default(uuid()) @db.Uuid
   jobName    String    @map("job_name")
-  status     String    // running | succeeded | failed
+  status     String // running | succeeded | failed
   countsJson Json?     @map("counts_json")
   error      String?
   startedAt  DateTime  @default(now()) @map("started_at") @db.Timestamptz

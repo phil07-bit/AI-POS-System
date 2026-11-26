@@ -13,3 +13,15 @@
 - **Timezone** for "today" is the organization's timezone (default Africa/Accra, UTC+0, no DST).
 - **Phone numbers** are normalised to +233 format when entered in local form (e.g. 024…).
 - **Receipt numbers** are sequential per organization and year (RCT-2026-000001); charge refs CHG-2026-00001.
+
+## Phase 4 (facilities)
+
+- **Default target dates** when none is set: emergency 1 day, high 3, normal 7, low 14.
+- **"Due soon"** for assets and plans means within 14 days; overdue means the due date has passed.
+- **Repeat repairs** are flagged at 3+ reactive work orders of the same category on one asset (or unit, when no asset) within 90 days.
+- **Vendor response time** = assigned → started; completion time = assigned → completed. Report completion time = raised → completed.
+- **Tenants** can report problems only for units on their active or pending-signature leases, see only tenant-visible updates
+  (never internal notes), and can rate work once completed.
+- **Photos/attachments** on requests and before/after images on work orders are deferred to the documents module (phase 5),
+  which brings private storage. Vendor contract documents likewise.
+- **No vendor bank details** are collected (spec §4.8): there is no accounts-payable module.

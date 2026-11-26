@@ -4,6 +4,7 @@
  *   npm run jobs:run -- generate-charges [--org <id>]
  *   npm run jobs:run -- expire-leases
  *   npm run jobs:run -- refresh-statuses
+ *   npm run jobs:run -- generate-pm     # preventive-maintenance work orders entering their lead window
  * Every job is idempotent (safe to re-run) and records a row in job_runs.
  * Jobs act as the "system" actor: audit rows carry userId = null, userName = "System job".
  */
@@ -12,6 +13,7 @@ import { addDays, todayInTz } from "@/lib/dates";
 import { generateChargesForLeaseTx } from "@/server/services/rent.service";
 import { expireEndedLeases } from "@/server/services/lease.service";
 import { refreshChargeStatuses } from "@/server/services/ledger-queries";
+import { generatePreventiveWorkOrders } from "@/server/services/preventive-maintenance.service";
 import { log } from "@/lib/logging";
 
 type Counts = Record<string, number>;
@@ -50,6 +52,12 @@ const jobs: Record<string, (orgId?: string) => Promise<Counts>> = {
     await refreshChargeStatuses(prisma, org.id, ids, todayInTz(org.timezone));
     return { chargesRefreshed: ids.length };
   }),
+
+  "generate-pm": (orgId) => forEachOrg(orgId, async (org) => {
+    const actor = { organizationId: org.id, userId: null as unknown as string, userName: "System job", requestId: `job-${Date.now()}`, isDemoOrg: org.isDemo };
+    const { refs: _refs, ...counts } = await generatePreventiveWorkOrders(actor, todayInTz(org.timezone));
+    return counts;
+  }),
 };
 
 async function run(name: string, orgId?: string) {
@@ -70,7 +78,7 @@ async function main() {
   const [name = "all", ...rest] = process.argv.slice(2);
   const orgIdx = rest.indexOf("--org");
   const orgId = orgIdx >= 0 ? rest[orgIdx + 1] : undefined;
-  const order = name === "all" ? ["expire-leases", "generate-charges", "refresh-statuses"] : [name];
+  const order = name === "all" ? ["expire-leases", "generate-charges", "refresh-statuses", "generate-pm"] : [name];
   for (const n of order) await run(n, orgId);
 }
 

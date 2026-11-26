@@ -10,4 +10,6 @@ No credentialed third-party service is called in phases 1–3. Each integration 
 | SMS / WhatsApp | – | Out of MVP scope per spec. | Later phase. |
 | File storage | – | Not used yet (documents are phase 5). | Local adapter first, then S3-compatible private storage. |
 
+Phase 4 uses the email mock for emergency maintenance escalation, and writes in-app notification rows (no UI until phase 5) for emergencies and work-order assignments.
+
 Nothing in the UI claims a message was delivered: simulated emails are labelled as such.

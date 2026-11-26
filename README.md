@@ -1,14 +1,15 @@
-# AI-POS — AI Property Operating System (MVP, phases 1–3)
+# AI-POS — AI Property Operating System (MVP, phases 1–4)
 
 A multi-tenant property operations platform for landlords and property managers in Ghana.
-This milestone covers spec phases 1–3: the operational core, built before any AI features.
+This milestone covers spec phases 1–4: the operational core, built before any AI features.
 
 | Phase | Scope | Status |
 |---|---|---|
 | 1 Foundation | Sign-up/login, sessions, organizations, invitations, permission-key RBAC with property scope, audit log, app shell | Done |
 | 2 Property ops | Properties, units, tenants (encrypted ID numbers), leases (draft → active → expired/terminated, renewals), occupancy | Done |
 | 3 Rent & ledger | Charge generation, payments (idempotent), allocation, confirmation, reversal, receipts, credits/refunds, tenant ledger, arrears aging, rent roll, tenant portal | Done |
-| 4–7 | Maintenance, reports/documents, AI, hardening | Not started (shown disabled in the nav) |
+| 4 Facilities | Maintenance requests (staff + tenant portal, triage → approve/reject → close), emergency escalation, work orders (assign technician or vendor, start/parts/complete, manager sign-off, rework), vendors with performance history, asset register, preventive-maintenance plans with a daily job, maintenance cost and repeat-repair reporting | Done |
+| 5–7 | Reports/documents, AI, hardening | Not started (shown disabled in the nav) |
 
 ## Stack
 
@@ -36,7 +37,8 @@ Demo logins (password `DemoPass2026!`, demo data only):
 | kumasi.manager@caxaze.demo | Property manager | Only Adum Heights (property scope) |
 | landlord@caxaze.demo | Owner viewer | Read-only, Adum Heights |
 | auditor@caxaze.demo | Auditor | Read-only incl. audit log |
-| tech@caxaze.demo / facility@caxaze.demo | Technician / Facility | Phase 4 roles, minimal access today |
+| facility@caxaze.demo | Facility manager | Requests, work orders, vendors, assets, PM plans, maintenance costs |
+| tech@caxaze.demo | Technician | Only work orders assigned to them; no financial reports |
 | tenant@caxaze.demo | Tenant portal | Own lease, balance and receipts only |
 | owner@osuhomes.demo | Owner of a second org | Used to show cross-org isolation |
 

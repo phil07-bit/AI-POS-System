@@ -51,6 +51,11 @@ const STATUS_TONES: Record<string, Tone> = {
   expiring: "amber", partially_paid: "amber", reserved: "violet", under_maintenance: "amber", under_development: "violet",
   overdue: "red", reversed: "red", terminated: "red", suspended: "red", unavailable: "slate", expired: "slate", void: "slate",
   former: "slate", archived: "slate", inactive: "slate", refunded: "violet",
+  // Facilities (phase 4)
+  submitted: "blue", triaged: "violet", approved: "blue", assigned: "violet", open: "blue", in_progress: "amber", waiting_for_parts: "amber",
+  completed: "green", closed: "slate", rejected: "slate", cancelled: "slate", disposed: "slate",
+  emergency: "red", high: "amber", normal: "slate", low: "slate", critical: "red", medium: "slate",
+  due_soon: "amber", ok: "green", not_scheduled: "slate", good: "green", fair: "amber", poor: "red", failed: "red",
 };
 export function StatusBadge({ status }: { status: string }) {
   return <Badge tone={STATUS_TONES[status] ?? "slate"}>{humanize(status)}</Badge>;

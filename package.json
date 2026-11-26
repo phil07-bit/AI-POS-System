@@ -2,7 +2,7 @@
   "name": "ai-pos",
   "version": "0.1.0",
   "private": true,
-  "description": "AI-POS — AI Property Operating System (MVP: phases 1-3)",
+  "description": "AI-POS — AI Property Operating System (MVP: phases 1-4)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
