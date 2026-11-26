@@ -9,7 +9,7 @@ export function Sidebar({ permissions, orgName }: { permissions: string[]; orgNa
   const path = usePathname();
   const [open, setOpen] = useState(false);
   const items = NAV.filter((n) => n.anyOf.some((p) => permissions.includes(p)));
-  const isActive = (href: string) => (href === "/app" ? path === "/app" : path.startsWith(href));
+  const isActive = (href: string) => (href === "/app" ? path === "/app" : path === href || path.startsWith(`${href}/`));
   return (
     <>
       <button type="button" className="no-print fixed left-3 top-3 z-40 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm lg:hidden" aria-expanded={open} aria-controls="sidebar" onClick={() => setOpen(!open)}>

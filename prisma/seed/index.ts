@@ -17,6 +17,7 @@ import { activateLease, createLease, markPendingSignature, renewLease, terminate
 import { createManualCharge, listCharges } from "../../src/server/services/rent.service";
 import { confirmPayment, recordPayment, reversePayment } from "../../src/server/services/payment.service";
 import { addDays, addMonths, todayInTz, withDayOfMonth } from "../../src/lib/dates";
+import { seedFacilities } from "./facilities";
 
 const DEMO_PASSWORD = "DemoPass2026!";
 const GHS = (cedis: number) => Math.round(cedis * 100);
@@ -60,8 +61,8 @@ async function main() {
   const owner = await user("owner@caxaze.demo", "Akosua Caxaze (Demo Owner)", "org_owner");
   const managerU = await user("manager@caxaze.demo", "Kwame Asiedu", "property_manager");
   const financeU = await user("finance@caxaze.demo", "Efua Mensah", "finance_officer");
-  await user("facility@caxaze.demo", "Yaw Boateng", "facility_manager");
-  await user("tech@caxaze.demo", "Kojo Amponsah", "technician");
+  const facilityU = await user("facility@caxaze.demo", "Yaw Boateng", "facility_manager");
+  const techU = await user("tech@caxaze.demo", "Kojo Amponsah", "technician");
   await user("auditor@caxaze.demo", "Adjoa Sarpong", "auditor");
   const O = await ctxOf(owner.id), M = await ctxOf(managerU.id), F = await ctxOf(financeU.id);
 
@@ -204,7 +205,13 @@ async function main() {
   await addTenantNote(M, T.ama, { kind: "note", body: "Lease ends soon — tenant interested in renewal at current rent." });
 
   // Tenant portal login for Abena.
-  await user("tenant@caxaze.demo", "Abena Serwaa Boateng", "tenant_portal", { tenantId: T.abena });
+  const tenantU = await user("tenant@caxaze.demo", "Abena Serwaa Boateng", "tenant_portal", { tenantId: T.abena });
+
+  // ── Facilities: vendors, assets, preventive plans, requests, work orders (phase 4) ──
+  await seedFacilities({
+    today, O, M, FM: await ctxOf(facilityU.id), TECH: await ctxOf(techU.id), PORTAL: await ctxOf(tenantU.id),
+    props: { airport: airport.id, spintex: spintex.id, adum: adum.id }, U, T,
+  });
 
   // ── Second organization (isolation demo) ──────────────────────────
   const other = await prisma.organization.create({ data: { name: "Osu Homes Ltd (Demo)", slug: "osu-homes-demo", isDemo: true, plan: "demo", addressJson: { country: "GH", region: "Greater Accra", community: "Osu" } } });
@@ -215,7 +222,9 @@ async function main() {
 
   const counts = {
     properties: await prisma.property.count(), units: await prisma.unit.count(), tenants: await prisma.tenant.count(), leases: await prisma.lease.count(),
-    charges: await prisma.rentCharge.count(), payments: await prisma.payment.count(), auditEvents: await prisma.auditLog.count(),
+    charges: await prisma.rentCharge.count(), payments: await prisma.payment.count(),
+    vendors: await prisma.vendor.count(), assets: await prisma.asset.count(), pmPlans: await prisma.preventiveMaintenancePlan.count(),
+    maintenanceRequests: await prisma.maintenanceRequest.count(), workOrders: await prisma.workOrder.count(), auditEvents: await prisma.auditLog.count(),
   };
   console.log("Seed complete:", counts);
   console.log(`Demo logins (password ${DEMO_PASSWORD}): owner@, manager@, finance@, facility@, tech@, auditor@, kumasi.manager@, landlord@, tenant@caxaze.demo; owner@osuhomes.demo`);

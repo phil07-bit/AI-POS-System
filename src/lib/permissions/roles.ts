@@ -14,7 +14,7 @@ export interface RoleDefinition {
 
 const readOnlyOps: PermissionKey[] = [
   "property.read", "unit.read", "lease.read", "rent.read", "report.financial.read",
-  "maintenance.request.read", "work_order.read", "asset.read",
+  "maintenance.request.read", "work_order.read", "asset.read", "vendor.read", "maintenance.report.read",
 ];
 
 const ownerPerms = ALL_PERMISSION_KEYS.filter((k) => k !== "portal.self");
@@ -33,7 +33,7 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
       "rent.read", "rent.charge.create", "payment.record", "report.financial.read",
       "maintenance.request.read", "maintenance.request.create", "maintenance.request.manage",
       "work_order.read", "work_order.assign", "work_order.update", "work_order.close",
-      "vendor.manage", "asset.read", "asset.manage", "document.read", "document.manage",
+      "vendor.read", "vendor.manage", "asset.read", "asset.manage", "maintenance.report.read", "document.read", "document.manage",
       "ai.insight.read", "ai.insight.generate",
     ] },
   { key: "finance_officer", name: "Finance Officer", rank: 50,
@@ -49,7 +49,8 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
     permissions: [
       "property.read", "unit.read", "maintenance.request.read", "maintenance.request.create",
       "maintenance.request.manage", "work_order.read", "work_order.assign", "work_order.update",
-      "work_order.close", "vendor.manage", "asset.read", "asset.manage", "document.read", "ai.insight.read",
+      "work_order.close", "vendor.read", "vendor.manage", "asset.read", "asset.manage", "maintenance.report.read",
+      "document.read", "ai.insight.read",
     ] },
   { key: "technician", name: "Maintenance Technician", rank: 20,
     description: "Assigned work orders and limited property/asset information.",
